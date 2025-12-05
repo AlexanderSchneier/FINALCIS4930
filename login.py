@@ -13,7 +13,7 @@ GESTURES = ["rock", "paper", "scissors"]
 PASSWORD = ["rock", "paper", "scissors", "rock"]
 
 #issue with my own camera
-'''
+
 def open_camera():
     for i in [0,1,2]:
         cam = cv2.VideoCapture(i)
@@ -21,8 +21,9 @@ def open_camera():
             print(f"using camera {i}")
             return cam
     raise RuntimeError("No camera available")
-'''
+
 #resizing to match model expectations
+
 def preprocess(frame):
     img = cv2.resize(frame, (224, 224))
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -39,30 +40,45 @@ def classify_gesture(frame):
     return GESTURES[idx]
 
 
-def capture_gesture(gesture_number):
+def capture_gesture(cam,gesture_number):
     #allow user to see themselves and choose when to capture the gesture
-    cam = cv2.VideoCapture(0)
+    #cam = open_camera()
     print(f"\nShow gesture #{gesture_number} and press SPACE to capture.")
 
-    x = 0;
     while True:
         ret, frame = cam.read()
         if not ret:
-            print("Camera error.")
-            x = x +1
-            if x == 20:
-                print("Error, too many camera errors")
-                break;
+            print("Camera error.")      
             continue
+    
+        gesture = classify_gesture(frame)
+        processed = preprocess(frame)
+        preds = model.predict(processed, verbose=0)[0]
+        confidence = np.max(preds)
 
+        cv2.putText(frame, f"Detecting: {gesture} ({confidence:.2f})", (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        cv2.putText(frame, "Press SPACE to capture", (10, 60),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+        cv2.imshow("Gesture Capture", frame)
+        
+        key = cv2.waitKey(1)
+        if key == 32:  # space key
+            print(f"Captured gesture: {gesture} (confidence: {confidence:.2f})")
+            return gesture
+        if key == 27:  # esc key
+            print("Cancelled by user.")
+            return None
+
+
+        '''
         cv2.putText(frame, "Press SPACE to capture gesture", (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-
         cv2.imshow("Gesture Capture", frame)
 
         key = cv2.waitKey(1)
 
-        if key == 32: #space key
+        if key == 32: #space: key
             gesture = classify_gesture(frame)
             print(f"Captured gesture: {gesture}")
             cam.release()
@@ -77,23 +93,28 @@ def capture_gesture(gesture_number):
 
     cam.release()
     cv2.destroyAllWindows()
-
+    '''
 
 def main():
+    cam = open_camera()
     user_gestures = []
 
     # Capture 4 gestures from webcam
-    for i in range(1, 5):
-        gesture = capture_gesture(i)
-        user_gestures.append(gesture)
+    try:
+        for i in range(1, 5):
+            gesture = capture_gesture(i)
+            if gesture is None:
+                break
+            user_gestures.append(gesture)
+        print("Your gestures:", user_gestures)
+        if user_gestures == PASSWORD:
+            print("Success")
+        else:
+            print("One or more gestures is wrong")
 
-    print("\nYour gesture sequence:", user_gestures)
-
-    if user_gestures == PASSWORD:
-        print("\nSUCCESS: Gesture password matched!")
-    else:
-        print("\nERROR: One or more gestures did not match the password.")
-
+    finally:
+        cam.release()
+        cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     main()
