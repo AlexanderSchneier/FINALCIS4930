@@ -5,15 +5,15 @@ import mediapipe as mp
 import json
 import os
 
-# ====== LOAD MODEL ======
+
 model = tf.keras.models.load_model("model_training/rock_paper_scissors_model.h5", compile=False)
 LABELS = ["rock", "paper", "scissors", "none"]
 
-# ====== PASSWORD CONFIG ======
+#hardwired password for testing purposes
 PASSWORD = ["rock", "paper", "scissors", "rock"]
 SAVE_FILE = "captured_gestures.json"
 
-# ====== MEDIAPIPE SETUP ======
+#media pip set up
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 hands = mp_hands.Hands(static_image_mode=False,
@@ -21,7 +21,7 @@ hands = mp_hands.Hands(static_image_mode=False,
                        min_detection_confidence=0.5,
                        min_tracking_confidence=0.5)
 
-# ====== HELPER: HAND CROP & PREPROCESS ======
+#helper function to localize hand
 def extract_hand(frame):
     img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     results = hands.process(img_rgb)
@@ -47,12 +47,14 @@ def extract_hand(frame):
 
     return hand_img, frame
 
+#ensure input matches model expectations
 def preprocess(img):
     img = cv2.resize(img, (224, 224))
     img = img.astype("float32") / 255.0
     img = np.expand_dims(img, axis=0)
     return img
 
+#get model output
 def classify_gesture(frame):
     hand_img, _ = extract_hand(frame)
     if hand_img is None:
@@ -62,9 +64,9 @@ def classify_gesture(frame):
     idx = np.argmax(preds)
     return LABELS[idx], float(np.max(preds))
 
-# ====== CAPTURE ONE GESTURE ======
+#individual user gesture capture
 def capture_gesture(cap, gesture_number):
-    print(f"\nShow gesture #{gesture_number} and press SPACE to capture.")
+    print(f"\nShow gesture #{gesture_number} and press space to capture.")
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -75,19 +77,19 @@ def capture_gesture(cap, gesture_number):
         gesture, conf = classify_gesture(frame)
         cv2.putText(frame, f"Detecting: {gesture} ({conf:.2f})",
                     (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        cv2.putText(frame, "Press SPACE to capture, ESC to cancel",
+        cv2.putText(frame, "Press space to capture, esc to cancel",
                     (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
         cv2.imshow("Gesture Capture", frame)
 
         key = cv2.waitKey(1)
-        if key == 32:  # SPACE
+        if key == 32:  # space
             print(f"Captured: {gesture} (confidence: {conf:.2f})")
             return gesture
-        elif key == 27:  # ESC
-            print("Cancelled by user.")
+        elif key == 27:  # esc
+            print("user exited")
             return None
 
-# ====== MAIN LOGIN LOOP ======
+
 def main():
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
@@ -103,16 +105,18 @@ def main():
             user_gestures.append(gesture)
         print("\nYour gestures:", user_gestures)
 
-        # Compare to password
+        #compare passed gestures to password
         if user_gestures == PASSWORD:
             print("Login Successful!")
         else:
-            print("❌ Login Failed: Gestures do not match.")
+            print(" Login failed: atleast one gesture does not match")
 
+        '''
+        #for debugging
         with open(SAVE_FILE, "w") as f:
             json.dump(user_gestures, f)
         print(f"Saved captured gestures to {os.path.abspath(SAVE_FILE)}")
-
+        '''
     finally:
         cap.release()
         cv2.destroyAllWindows()
