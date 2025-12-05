@@ -10,6 +10,7 @@ dependencies:
   - matplotlib
   - ipykernel
   - jupyter
+  - opencv
   - pip
   - pip:
       - kagglehub
